@@ -1,0 +1,72 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 712" width="760" height="712" font-family="Pretendard, 'Noto Sans KR', 'Noto Sans CJK KR', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif">
+<title>로컬 DNS 기반 분산 서비스 — 시스템 아키텍처</title>
+<defs><marker id="arch-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#8a9099"/></marker></defs>
+<rect width="760" height="712" fill="#ffffff"/>
+<text x="24" y="32" font-size="15" font-weight="600" fill="#1f2328">UI에서 바꾼 레코드는 존 파일을 거쳐 약 2초 뒤 실제 DNS 응답이 된다</text>
+<text x="24" y="52" font-size="11.5" fill="#5f6672">왼쪽: 관리 경로(①②③) · 오른쪽: 서비스 접근 경로(④⑤) · SQLite가 단일 진실 원천</text>
+<rect x="24" y="152" width="712" height="536" rx="8" fill="none" stroke="#c9ccd1" stroke-width="1.25" stroke-dasharray="6 4"/>
+<text x="40" y="676" font-size="11.5" fill="#5f6672">Docker Compose 네트워크 · 172.30.0.0/24</text>
+<path d="M178 128V192" fill="none" stroke="#8a9099" stroke-width="1.25" marker-end="url(#arch-arrow)"/>
+<path d="M178 264V296" fill="none" stroke="#8a9099" stroke-width="1.25" marker-end="url(#arch-arrow)"/>
+<path d="M178 384V424" fill="none" stroke="#8a9099" stroke-width="1.25" marker-end="url(#arch-arrow)"/>
+<path d="M308 460H452" fill="none" stroke="#8a9099" stroke-width="1.25" marker-end="url(#arch-arrow)"/>
+<path d="M308 340H452" fill="none" stroke="#8a9099" stroke-width="1.25" stroke-dasharray="4 4" marker-end="url(#arch-arrow)"/>
+<path d="M582 296V128" fill="none" stroke="#8a9099" stroke-width="1.25" marker-end="url(#arch-arrow)"/>
+<path d="M308 576H404V490H452" fill="none" stroke="#8a9099" stroke-width="1.25" marker-end="url(#arch-arrow)"/>
+<path d="M308 612H452" fill="none" stroke="#8a9099" stroke-width="1.25" marker-end="url(#arch-arrow)"/>
+<path d="M582 506V552" fill="none" stroke="#8a9099" stroke-width="1.25" stroke-dasharray="4 4" marker-end="url(#arch-arrow)"/>
+<rect x="48" y="72" width="260" height="56" rx="8" fill="none" stroke="#8a9099" stroke-width="1.25"/>
+<text x="64" y="96" font-size="13" font-weight="600" fill="#1f2328">브라우저 (운영자)</text>
+<text x="64" y="114" font-size="11.5" fill="#5f6672">http://localhost:5173</text>
+<rect x="452" y="72" width="260" height="56" rx="8" fill="none" stroke="#8a9099" stroke-width="1.25"/>
+<text x="468" y="96" font-size="13" font-weight="600" fill="#1f2328">Upstream DNS (외부)</text>
+<text x="468" y="114" font-size="11.5" fill="#5f6672">8.8.8.8 · 1.1.1.1</text>
+<rect x="48" y="192" width="260" height="72" rx="8" fill="none" stroke="#8a9099" stroke-width="1.25"/>
+<text x="64" y="216" font-size="13" font-weight="600" fill="#1f2328">frontend · :5173</text>
+<text x="64" y="234" font-size="11.5" fill="#1f2328">React · Vite · TypeScript · Mantine</text>
+<text x="64" y="250" font-size="11.5" fill="#5f6672">레코드 · 질의 테스트 · 포워딩 · 이력</text>
+<rect x="48" y="296" width="260" height="88" rx="8" fill="none" stroke="#8a9099" stroke-width="1.25"/>
+<text x="64" y="320" font-size="13" font-weight="600" fill="#1f2328">backend · FastAPI</text>
+<text x="64" y="338" font-size="11.5" fill="#1f2328">SQLite에 저장 — 단일 진실 원천</text>
+<text x="64" y="354" font-size="11.5" fill="#1f2328">검증 → 존 파일 교체 → 커밋 (실패 시 롤백)</text>
+<text x="64" y="370" font-size="11.5" fill="#5f6672">/sync-status · 20초 재동기화 루프</text>
+<rect x="48" y="424" width="260" height="72" rx="8" fill="#f1f2f4" stroke="#8a9099" stroke-width="1.25"/>
+<text x="64" y="448" font-size="13" font-weight="600" fill="#1f2328">공유 볼륨 dns_zone</text>
+<text x="64" y="466" font-size="11.5" fill="#1f2328">db.lab.test — 존 파일, serial 단조 증가</text>
+<text x="64" y="482" font-size="11.5" fill="#1f2328">Corefile — 포워딩 설정</text>
+<rect x="48" y="560" width="260" height="72" rx="8" fill="none" stroke="#8a9099" stroke-width="1.25" stroke-dasharray="4 4"/>
+<text x="64" y="584" font-size="13" font-weight="600" fill="#1f2328">dnsutils · 실험용 클라이언트</text>
+<text x="64" y="602" font-size="11.5" fill="#1f2328">dig · curl, resolver = CoreDNS</text>
+<text x="64" y="618" font-size="11.5" fill="#5f6672">profile: debug — 평소에는 기동 안 함</text>
+<rect x="452" y="296" width="260" height="210" rx="8" fill="#2f6fde" stroke="#2f6fde" stroke-width="2" fill-opacity="0.12" stroke-opacity="1"/>
+<rect x="452" y="296" width="260" height="210" rx="8" fill="none" stroke="#2f6fde" stroke-width="2"/>
+<text x="468" y="319" font-size="13" font-weight="600" fill="#1f2328">CoreDNS · 172.30.0.10:53</text>
+<rect x="468" y="330" width="228" height="72" rx="8" fill="#ffffff" stroke="#8a9099" stroke-width="1.25"/>
+<text x="484" y="354" font-size="13" font-weight="600" fill="#1f2328">file 플러그인 · lab.test</text>
+<text x="484" y="372" font-size="11.5" fill="#1f2328">로컬 존 권한 응답 (aa)</text>
+<text x="484" y="388" font-size="11.5" fill="#5f6672">reload 2s · round_robin 순서 회전</text>
+<rect x="468" y="418" width="228" height="72" rx="8" fill="#ffffff" stroke="#8a9099" stroke-width="1.25"/>
+<text x="484" y="442" font-size="13" font-weight="600" fill="#1f2328">forward 플러그인</text>
+<text x="484" y="460" font-size="11.5" fill="#1f2328">lab.test 외 도메인 → upstream</text>
+<text x="484" y="476" font-size="11.5" fill="#5f6672">Corefile 변경 5s마다 reload</text>
+<rect x="452" y="552" width="260" height="120" rx="8" fill="none" stroke="#8a9099" stroke-width="1.25"/>
+<text x="468" y="575" font-size="13" font-weight="600" fill="#1f2328">분산 API 서버 · 동일 이미지 3개</text>
+<rect x="468" y="588" width="68" height="48" rx="8" fill="none" stroke="#8a9099" stroke-width="1.25"/>
+<text x="502" y="608" font-size="13" font-weight="600" fill="#1f2328" text-anchor="middle">node1</text>
+<text x="502" y="626" font-size="11.5" fill="#5f6672" text-anchor="middle">.21</text>
+<rect x="548" y="588" width="68" height="48" rx="8" fill="none" stroke="#8a9099" stroke-width="1.25"/>
+<text x="582" y="608" font-size="13" font-weight="600" fill="#1f2328" text-anchor="middle">node2</text>
+<text x="582" y="626" font-size="11.5" fill="#5f6672" text-anchor="middle">.22</text>
+<rect x="628" y="588" width="68" height="48" rx="8" fill="none" stroke="#8a9099" stroke-width="1.25"/>
+<text x="662" y="608" font-size="13" font-weight="600" fill="#1f2328" text-anchor="middle">node3</text>
+<text x="662" y="626" font-size="11.5" fill="#5f6672" text-anchor="middle">.23</text>
+<text x="468" y="656" font-size="11.5" fill="#5f6672">/health · /info · :8000 · NODE_ID만 다름</text>
+<text x="190" y="284" font-size="11.5" fill="#5f6672">① REST API</text>
+<text x="190" y="408" font-size="11.5" fill="#5f6672">② 커밋 전 렌더링 · 검증 · 원자적 교체</text>
+<text x="380" y="450" font-size="11.5" fill="#5f6672" text-anchor="middle">③ 2s / 5s 폴링 감지</text>
+<text x="380" y="330" font-size="11.5" fill="#5f6672" text-anchor="middle">질의 테스트 · serial 확인</text>
+<text x="396" y="536" font-size="11.5" fill="#5f6672" text-anchor="end">④ DNS 질의</text>
+<text x="380" y="602" font-size="11.5" fill="#5f6672" text-anchor="middle">⑤ HTTP · 도메인으로 호출</text>
+<text x="592" y="216" font-size="11.5" fill="#5f6672">lab.test 외 도메인 전달</text>
+<text x="592" y="533" font-size="11.5" fill="#5f6672">api.lab.test → A 3건</text>
+</svg>

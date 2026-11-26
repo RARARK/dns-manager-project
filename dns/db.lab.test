@@ -1,0 +1,13 @@
+; CoreDNS 기동 시점에 파싱 가능한 존이 하나는 있어야 해서 두는 부트스트랩 전용 파일.
+; 실제 레코드는 백엔드가 DB 를 기준으로 named volume(dns_zone) 안의 사본에 렌더링한다.
+; 여기에 레코드를 적어두면 환경이 바뀔 때 낡은 IP 가 남는 함정이 되므로 비워 둔다.
+$ORIGIN lab.test.
+$TTL 30
+@       IN  SOA ns.dns.lab.test. hostmaster.lab.test. (
+                1 ; serial
+                7200       ; refresh
+                1800       ; retry
+                86400      ; expire
+                30 )       ; minimum ttl
+        IN  NS  ns.dns.lab.test.
+ns.dns  IN  A   127.0.0.1

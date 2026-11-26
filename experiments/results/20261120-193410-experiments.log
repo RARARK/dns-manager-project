@@ -1,0 +1,758 @@
+DNS Manager — 필수 실험 결과
+실행 시각: 2026-11-20 19:34:10    
+
+================================================================
+ 실험 baseline 구성
+================================================================
+
+--- 기존 레코드 전체 삭제 ---
+deleted record id=6
+deleted record id=5
+deleted record id=1
+deleted record id=2
+deleted record id=3
+deleted record id=4
+
+--- 실험용 레코드 등록 ---
+POST api.lab.test A -> 172.30.0.21
+POST api.lab.test A -> 172.30.0.22
+POST api.lab.test A -> 172.30.0.23
+POST www.lab.test CNAME -> api.lab.test
+POST *.dev.lab.test A -> 10.0.0.99
+POST *.cdn.lab.test CNAME -> api.lab.test
+
+--- 등록 결과 ---
+[{"id":6,"domain":"*.cdn.lab.test","record_type":"CNAME","value":"api.lab.test","ttl":30,"enabled":true,"created_at":"2026-11-20T10:34:14.574353","updated_at":"2026-11-20T10:34:14.574358"},{"id":5,"domain":"*.dev.lab.test","record_type":"A","value":"10.0.0.99","ttl":30,"enabled":true,"created_at":"2026-11-20T10:34:14.299653","updated_at":"2026-11-20T10:34:14.299659"},{"id":1,"domain":"api.lab.test","record_type":"A","value":"172.30.0.21","ttl":30,"enabled":true,"created_at":"2026-11-20T10:34:13.219121","updated_at":"2026-11-20T10:34:13.219127"},{"id":2,"domain":"api.lab.test","record_type":"A","value":"172.30.0.22","ttl":30,"enabled":true,"created_at":"2026-11-20T10:34:13.493801","updated_at":"2026-11-20T10:34:13.493806"},{"id":3,"domain":"api.lab.test","record_type":"A","value":"172.30.0.23","ttl":30,"enabled":true,"created_at":"2026-11-20T10:34:13.753127","updated_at":"2026-11-20T10:34:13.753131"},{"id":4,"domain":"www.lab.test","record_type":"CNAME","value":"api.lab.test","ttl":30,"enabled":true,"created_at":"2026-11-20T10:34:14.028112","updated_at":"2026-11-20T10:34:14.028117"}]
+
+DNS 반영 대기 (3초)...
+baseline 구성 완료
+
+================================================================
+ 실험 1. DNS Resolution (A / CNAME / Wildcard)
+================================================================
+
+--- 1-1. A 레코드 (동일 도메인 다중 A): api.lab.test ---
+
+; <<>> DiG 9.18.49 <<>> @172.30.0.10 api.lab.test A
+; (1 server found)
+;; global options: +cmd
+;; Got answer:
+;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 40439
+;; flags: qr aa rd; QUERY: 1, ANSWER: 3, AUTHORITY: 1, ADDITIONAL: 1
+;; WARNING: recursion requested but not available
+
+;; OPT PSEUDOSECTION:
+; EDNS: version: 0, flags:; udp: 1232
+; COOKIE: cd7926da84c83f46 (echoed)
+;; QUESTION SECTION:
+;api.lab.test.			IN	A
+
+;; ANSWER SECTION:
+api.lab.test.		30	IN	A	172.30.0.21
+api.lab.test.		30	IN	A	172.30.0.22
+api.lab.test.		30	IN	A	172.30.0.23
+
+;; AUTHORITY SECTION:
+lab.test.		30	IN	NS	ns.dns.lab.test.
+
+;; Query time: 0 msec
+;; SERVER: 172.30.0.10#53(172.30.0.10) (UDP)
+;; WHEN: Fri Nov 20 10:34:20 UTC 2026
+;; MSG SIZE  rcvd: 174
+
+
+--- 1-2. CNAME 레코드: www.lab.test ---
+
+; <<>> DiG 9.18.49 <<>> @172.30.0.10 www.lab.test CNAME
+; (1 server found)
+;; global options: +cmd
+;; Got answer:
+;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 1553
+;; flags: qr aa rd; QUERY: 1, ANSWER: 1, AUTHORITY: 1, ADDITIONAL: 1
+;; WARNING: recursion requested but not available
+
+;; OPT PSEUDOSECTION:
+; EDNS: version: 0, flags:; udp: 1232
+; COOKIE: a910becfd51d6798 (echoed)
+;; QUESTION SECTION:
+;www.lab.test.			IN	CNAME
+
+;; ANSWER SECTION:
+www.lab.test.		30	IN	CNAME	api.lab.test.
+
+;; AUTHORITY SECTION:
+lab.test.		30	IN	NS	ns.dns.lab.test.
+
+;; Query time: 0 msec
+;; SERVER: 172.30.0.10#53(172.30.0.10) (UDP)
+;; WHEN: Fri Nov 20 10:34:22 UTC 2026
+;; MSG SIZE  rcvd: 128
+
+
+--- 1-3. CNAME 체인 해석 (CNAME -> A): www.lab.test A 질의 ---
+
+; <<>> DiG 9.18.49 <<>> @172.30.0.10 www.lab.test A
+; (1 server found)
+;; global options: +cmd
+;; Got answer:
+;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 12877
+;; flags: qr aa rd; QUERY: 1, ANSWER: 4, AUTHORITY: 1, ADDITIONAL: 1
+;; WARNING: recursion requested but not available
+
+;; OPT PSEUDOSECTION:
+; EDNS: version: 0, flags:; udp: 1232
+; COOKIE: 93dd819ec2c8260d (echoed)
+;; QUESTION SECTION:
+;www.lab.test.			IN	A
+
+;; ANSWER SECTION:
+www.lab.test.		30	IN	CNAME	api.lab.test.
+api.lab.test.		30	IN	A	172.30.0.23
+api.lab.test.		30	IN	A	172.30.0.22
+api.lab.test.		30	IN	A	172.30.0.21
+
+;; AUTHORITY SECTION:
+lab.test.		30	IN	NS	ns.dns.lab.test.
+
+;; Query time: 0 msec
+;; SERVER: 172.30.0.10#53(172.30.0.10) (UDP)
+;; WHEN: Fri Nov 20 10:34:24 UTC 2026
+;; MSG SIZE  rcvd: 212
+
+
+--- 1-4. Wildcard 레코드: 등록하지 않은 임의 서브도메인 2개 ---
+
+; <<>> DiG 9.18.49 <<>> @172.30.0.10 alpha.dev.lab.test A
+; (1 server found)
+;; global options: +cmd
+;; Got answer:
+;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 14929
+;; flags: qr aa rd; QUERY: 1, ANSWER: 1, AUTHORITY: 1, ADDITIONAL: 1
+;; WARNING: recursion requested but not available
+
+;; OPT PSEUDOSECTION:
+; EDNS: version: 0, flags:; udp: 1232
+; COOKIE: 705112729eb3e51d (echoed)
+;; QUESTION SECTION:
+;alpha.dev.lab.test.		IN	A
+
+;; ANSWER SECTION:
+alpha.dev.lab.test.	30	IN	A	10.0.0.99
+
+;; AUTHORITY SECTION:
+lab.test.		30	IN	NS	ns.dns.lab.test.
+
+;; Query time: 0 msec
+;; SERVER: 172.30.0.10#53(172.30.0.10) (UDP)
+;; WHEN: Fri Nov 20 10:34:26 UTC 2026
+;; MSG SIZE  rcvd: 130
+
+
+; <<>> DiG 9.18.49 <<>> @172.30.0.10 beta.dev.lab.test A
+; (1 server found)
+;; global options: +cmd
+;; Got answer:
+;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 1583
+;; flags: qr aa rd; QUERY: 1, ANSWER: 1, AUTHORITY: 1, ADDITIONAL: 1
+;; WARNING: recursion requested but not available
+
+;; OPT PSEUDOSECTION:
+; EDNS: version: 0, flags:; udp: 1232
+; COOKIE: b6e4bced5709dd79 (echoed)
+;; QUESTION SECTION:
+;beta.dev.lab.test.		IN	A
+
+;; ANSWER SECTION:
+beta.dev.lab.test.	30	IN	A	10.0.0.99
+
+;; AUTHORITY SECTION:
+lab.test.		30	IN	NS	ns.dns.lab.test.
+
+;; Query time: 0 msec
+;; SERVER: 172.30.0.10#53(172.30.0.10) (UDP)
+;; WHEN: Fri Nov 20 10:34:28 UTC 2026
+;; MSG SIZE  rcvd: 128
+
+
+--- 1-5. Wildcard CNAME: *.cdn.lab.test -> api.lab.test ---
+등록하지 않은 임의의 하위 이름으로 질의한다(별표 이름 자체로 질의하면 와일드카드 검증이 되지 않는다).
+
+; <<>> DiG 9.18.49 <<>> @172.30.0.10 anything.cdn.lab.test CNAME
+; (1 server found)
+;; global options: +cmd
+;; Got answer:
+;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 3257
+;; flags: qr aa rd; QUERY: 1, ANSWER: 1, AUTHORITY: 1, ADDITIONAL: 1
+;; WARNING: recursion requested but not available
+
+;; OPT PSEUDOSECTION:
+; EDNS: version: 0, flags:; udp: 1232
+; COOKIE: bf64cdeedaf57f90 (echoed)
+;; QUESTION SECTION:
+;anything.cdn.lab.test.		IN	CNAME
+
+;; ANSWER SECTION:
+anything.cdn.lab.test.	30	IN	CNAME	api.lab.test.
+
+;; AUTHORITY SECTION:
+lab.test.		30	IN	NS	ns.dns.lab.test.
+
+;; Query time: 0 msec
+;; SERVER: 172.30.0.10#53(172.30.0.10) (UDP)
+;; WHEN: Fri Nov 20 10:34:30 UTC 2026
+;; MSG SIZE  rcvd: 146
+
+[같은 이름으로 A 질의 — CNAME 체인을 따라 api 의 A 레코드까지 해석되어야 한다]
+
+; <<>> DiG 9.18.49 <<>> @172.30.0.10 anything.cdn.lab.test A
+; (1 server found)
+;; global options: +cmd
+;; Got answer:
+;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 61909
+;; flags: qr aa rd; QUERY: 1, ANSWER: 4, AUTHORITY: 1, ADDITIONAL: 1
+;; WARNING: recursion requested but not available
+
+;; OPT PSEUDOSECTION:
+; EDNS: version: 0, flags:; udp: 1232
+; COOKIE: a18b6deb5bb358e1 (echoed)
+;; QUESTION SECTION:
+;anything.cdn.lab.test.		IN	A
+
+;; ANSWER SECTION:
+anything.cdn.lab.test.	30	IN	CNAME	api.lab.test.
+api.lab.test.		30	IN	A	172.30.0.23
+api.lab.test.		30	IN	A	172.30.0.21
+api.lab.test.		30	IN	A	172.30.0.22
+
+;; AUTHORITY SECTION:
+lab.test.		30	IN	NS	ns.dns.lab.test.
+
+;; Query time: 0 msec
+;; SERVER: 172.30.0.10#53(172.30.0.10) (UDP)
+;; WHEN: Fri Nov 20 10:34:32 UTC 2026
+;; MSG SIZE  rcvd: 230
+
++short: api.lab.test. 172.30.0.21 172.30.0.22 172.30.0.23 
+
+--- 1-6. 존재하지 않는 내부 도메인 (NXDOMAIN 확인): nothing.lab.test ---
+
+; <<>> DiG 9.18.49 <<>> @172.30.0.10 nothing.lab.test A
+; (1 server found)
+;; global options: +cmd
+;; Got answer:
+;; ->>HEADER<<- opcode: QUERY, status: NXDOMAIN, id: 42801
+;; flags: qr aa rd; QUERY: 1, ANSWER: 0, AUTHORITY: 1, ADDITIONAL: 1
+;; WARNING: recursion requested but not available
+
+;; OPT PSEUDOSECTION:
+; EDNS: version: 0, flags:; udp: 1232
+; COOKIE: 5afe141fe941cc1a (echoed)
+;; QUESTION SECTION:
+;nothing.lab.test.		IN	A
+
+;; AUTHORITY SECTION:
+lab.test.		30	IN	SOA	ns.dns.lab.test. hostmaster.lab.test. 1795170862 7200 1800 86400 30
+
+;; Query time: 0 msec
+;; SERVER: 172.30.0.10#53(172.30.0.10) (UDP)
+;; WHEN: Fri Nov 20 10:34:36 UTC 2026
+;; MSG SIZE  rcvd: 135
+
+
+================================================================
+ 실험 2. DNS Forwarding (내부 vs 외부 도메인)
+================================================================
+비교 관점: 응답 플래그(aa = authoritative, ra = recursion available)와 AUTHORITY 섹션
+  - 내부 도메인: CoreDNS가 로컬 존의 권한 있는 서버로 직접 응답 -> aa 플래그 존재
+  - 외부 도메인: upstream(8.8.8.8 / 1.1.1.1)으로 전달 후 중계 -> aa 없음, ra 존재
+
+--- 2-1. 내부 도메인 (로컬 존에서 처리): api.lab.test ---
+
+; <<>> DiG 9.18.49 <<>> @172.30.0.10 api.lab.test A
+; (1 server found)
+;; global options: +cmd
+;; Got answer:
+;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 13943
+;; flags: qr aa rd; QUERY: 1, ANSWER: 3, AUTHORITY: 1, ADDITIONAL: 1
+;; WARNING: recursion requested but not available
+
+;; OPT PSEUDOSECTION:
+; EDNS: version: 0, flags:; udp: 1232
+; COOKIE: c8e21667e0eb3fd6 (echoed)
+;; QUESTION SECTION:
+;api.lab.test.			IN	A
+
+;; ANSWER SECTION:
+api.lab.test.		30	IN	A	172.30.0.23
+api.lab.test.		30	IN	A	172.30.0.21
+api.lab.test.		30	IN	A	172.30.0.22
+
+;; AUTHORITY SECTION:
+lab.test.		30	IN	NS	ns.dns.lab.test.
+
+;; Query time: 0 msec
+;; SERVER: 172.30.0.10#53(172.30.0.10) (UDP)
+;; WHEN: Fri Nov 20 10:34:39 UTC 2026
+;; MSG SIZE  rcvd: 174
+
+
+--- 2-2. 외부 도메인 (upstream으로 forwarding): google.com ---
+
+; <<>> DiG 9.18.49 <<>> @172.30.0.10 google.com A
+; (1 server found)
+;; global options: +cmd
+;; Got answer:
+;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 13894
+;; flags: qr rd ra; QUERY: 1, ANSWER: 6, AUTHORITY: 0, ADDITIONAL: 1
+
+;; OPT PSEUDOSECTION:
+; EDNS: version: 0, flags:; udp: 1232
+;; QUESTION SECTION:
+;google.com.			IN	A
+
+;; ANSWER SECTION:
+google.com.		300	IN	A	172.217.211.100
+google.com.		300	IN	A	172.217.211.102
+google.com.		300	IN	A	172.217.211.113
+google.com.		300	IN	A	172.217.211.101
+google.com.		300	IN	A	172.217.211.138
+google.com.		300	IN	A	172.217.211.139
+
+;; Query time: 48 msec
+;; SERVER: 172.30.0.10#53(172.30.0.10) (UDP)
+;; WHEN: Fri Nov 20 10:34:41 UTC 2026
+;; MSG SIZE  rcvd: 195
+
+
+--- 2-3. 외부 도메인 2: example.com ---
+
+; <<>> DiG 9.18.49 <<>> @172.30.0.10 example.com A
+; (1 server found)
+;; global options: +cmd
+;; Got answer:
+;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 43963
+;; flags: qr rd ra ad; QUERY: 1, ANSWER: 2, AUTHORITY: 0, ADDITIONAL: 1
+
+;; OPT PSEUDOSECTION:
+; EDNS: version: 0, flags:; udp: 1232
+;; QUESTION SECTION:
+;example.com.			IN	A
+
+;; ANSWER SECTION:
+example.com.		300	IN	A	172.66.147.243
+example.com.		300	IN	A	104.20.23.154
+
+;; Query time: 40 msec
+;; SERVER: 172.30.0.10#53(172.30.0.10) (UDP)
+;; WHEN: Fri Nov 20 10:34:43 UTC 2026
+;; MSG SIZE  rcvd: 94
+
+
+--- 2-4. 플래그 요약 비교 ---
+[내부] api.lab.test:
+;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 65160
+;; flags: qr aa rd; QUERY: 1, ANSWER: 3, AUTHORITY: 1, ADDITIONAL: 1
+
+[외부] google.com:
+;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 31791
+;; flags: qr rd ra; QUERY: 1, ANSWER: 6, AUTHORITY: 0, ADDITIONAL: 1
+
+--- 2-5. 관리하지 않는 내부 존 도메인은 외부로 나가지 않고 NXDOMAIN ---
+;; ->>HEADER<<- opcode: QUERY, status: NXDOMAIN, id: 31961
+;; flags: qr aa rd; QUERY: 1, ANSWER: 0, AUTHORITY: 1, ADDITIONAL: 1
+;; WARNING: recursion requested but not available
+
+--
+;; AUTHORITY SECTION:
+lab.test.		30	IN	SOA	ns.dns.lab.test. hostmaster.lab.test. 1795170862 7200 1800 86400 30
+
+
+--- 2-6. UI(API)에서 upstream 을 변경하면 외부 질의 처리도 바뀌는가 ---
+현재 설정: {"upstreams":["8.8.8.8","1.1.1.1"]}
+
+[도달 불가 주소(192.0.2.1, RFC5737 TEST-NET)로 변경]
+{"upstreams":["192.0.2.1"]}
+CoreDNS 설정 리로드 대기 (8초)...
+[외부 도메인] google.com — upstream 에 닿지 못해 응답이 오지 않아야 한다:
+;; no servers could be reached
+[내부 도메인] api.lab.test — 로컬 존이라 영향을 받지 않아야 한다:
+;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 50730
+
+[정상 upstream 으로 원복]
+{"upstreams":["8.8.8.8","1.1.1.1"]}
+리로드 대기 (8초)...
+[외부 도메인] google.com — 복구 확인:
+;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 40658
+
+================================================================
+ 실험 3. Dynamic DNS Update (등록 -> 수정 -> 삭제)
+================================================================
+
+--- 3-1. 변경 전: dyntest.lab.test 질의 (NXDOMAIN 예상) ---
+;; ->>HEADER<<- opcode: QUERY, status: NXDOMAIN, id: 59031
+
+--- 3-2. 레코드 등록 (10.0.0.111) ---
+{"id":7,"domain":"dyntest.lab.test","record_type":"A","value":"10.0.0.111","ttl":30,"enabled":true,"created_at":"2026-11-20T10:35:19.540628","updated_at":"2026-11-20T10:35:19.540634"}
+DNS 반영 대기 (3초)...
+
+--- 3-3. 등록 후 질의 (10.0.0.111 예상) ---
+
+; <<>> DiG 9.18.49 <<>> @172.30.0.10 dyntest.lab.test A
+; (1 server found)
+;; global options: +cmd
+;; Got answer:
+;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 38138
+;; flags: qr aa rd; QUERY: 1, ANSWER: 1, AUTHORITY: 1, ADDITIONAL: 1
+;; WARNING: recursion requested but not available
+
+;; OPT PSEUDOSECTION:
+; EDNS: version: 0, flags:; udp: 1232
+; COOKIE: 7db2c19a25df14b3 (echoed)
+;; QUESTION SECTION:
+;dyntest.lab.test.		IN	A
+
+;; ANSWER SECTION:
+dyntest.lab.test.	30	IN	A	10.0.0.111
+
+;; AUTHORITY SECTION:
+lab.test.		30	IN	NS	ns.dns.lab.test.
+
+;; Query time: 0 msec
+;; SERVER: 172.30.0.10#53(172.30.0.10) (UDP)
+;; WHEN: Fri Nov 20 10:35:24 UTC 2026
+;; MSG SIZE  rcvd: 126
+
++short: 10.0.0.111
+
+--- 3-4. 레코드 값 수정 (10.0.0.111 -> 10.0.0.222) ---
+대상 record id = 7
+{"id":7,"domain":"dyntest.lab.test","record_type":"A","value":"10.0.0.222","ttl":30,"enabled":true,"created_at":"2026-11-20T10:35:19.540628","updated_at":"2026-11-20T10:35:27.153027"}
+DNS 반영 대기 (3초)...
+
+--- 3-5. 수정 후 질의 (10.0.0.222 예상) ---
++short: 10.0.0.222
+
+--- 3-6. 레코드 비활성화 ---
+{"id":7,"domain":"dyntest.lab.test","record_type":"A","value":"10.0.0.222","ttl":30,"enabled":false,"created_at":"2026-11-20T10:35:19.540628","updated_at":"2026-11-20T10:35:32.495938"}
+DNS 반영 대기 (3초)...
+비활성화 후 질의 결과:
+;; ->>HEADER<<- opcode: QUERY, status: NXDOMAIN, id: 60019
+
+--- 3-7. 레코드 재활성화 후 삭제 ---
+삭제 완료. DNS 반영 대기 (3초)...
+삭제 후 질의 결과:
+;; ->>HEADER<<- opcode: QUERY, status: NXDOMAIN, id: 51465
+
+--- 3-8. 변경 이력 (audit log) 확인 ---
+{"id":158,"timestamp":"2026-11-20T10:35:38.086232","action":"delete","record_id":7,"domain":"dyntest.lab.test","record_type":"A","value":"10.0.0.222","detail":null
+{"id":157,"timestamp":"2026-11-20T10:35:37.815023","action":"enable","record_id":7,"domain":"dyntest.lab.test","record_type":"A","value":"10.0.0.222","detail":"enabled: False -> True"
+{"id":156,"timestamp":"2026-11-20T10:35:32.496329","action":"disable","record_id":7,"domain":"dyntest.lab.test","record_type":"A","value":"10.0.0.222","detail":"enabled: True -> False"
+{"id":155,"timestamp":"2026-11-20T10:35:27.153700","action":"update","record_id":7,"domain":"dyntest.lab.test","record_type":"A","value":"10.0.0.222","detail":"value: 10.0.0.111 -> 10.0.0.222, ttl: 30 -> 30"
+{"id":154,"timestamp":"2026-11-20T10:35:19.541331","action":"create","record_id":7,"domain":"dyntest.lab.test","record_type":"A","value":"10.0.0.111","detail":null
+{"id":114,"timestamp":"2026-11-20T10:31:17.389771","action":"delete","record_id":7,"domain":"dyntest.lab.test","record_type":"A","value":"10.0.0.222","detail":null
+{"id":113,"timestamp":"2026-11-20T10:31:17.114199","action":"enable","record_id":7,"domain":"dyntest.lab.test","record_type":"A","value":"10.0.0.222","detail":"enabled: False -> True"
+{"id":112,"timestamp":"2026-11-20T10:31:11.645983","action":"disable","record_id":7,"domain":"dyntest.lab.test","record_type":"A","value":"10.0.0.222","detail":"enabled: True -> False"
+{"id":111,"timestamp":"2026-11-20T10:31:06.475563","action":"update","record_id":7,"domain":"dyntest.lab.test","record_type":"A","value":"10.0.0.222","detail":"value: 10.0.0.111 -> 10.0.0.222, ttl: 30 -> 30"
+{"id":110,"timestamp":"2026-11-20T10:30:58.638519","action":"create","record_id":7,"domain":"dyntest.lab.test","record_type":"A","value":"10.0.0.111","detail":null
+{"id":88,"timestamp":"2026-11-20T10:29:27.938473","action":"delete","record_id":7,"domain":"dyntest.lab.test","record_type":"A","value":"10.0.0.222","detail":null
+{"id":87,"timestamp":"2026-11-20T10:29:27.666609","action":"enable","record_id":7,"domain":"dyntest.lab.test","record_type":"A","value":"10.0.0.222","detail":"enabled: False -> True"
+{"id":86,"timestamp":"2026-11-20T10:29:22.339810","action":"disable","record_id":7,"domain":"dyntest.lab.test","record_type":"A","value":"10.0.0.222","detail":"enabled: True -> False"
+{"id":85,"timestamp":"2026-11-20T10:29:16.765302","action":"update","record_id":7,"domain":"dyntest.lab.test","record_type":"A","value":"10.0.0.222","detail":"value: 10.0.0.111 -> 10.0.0.222, ttl: 30 -> 30"
+{"id":84,"timestamp":"2026-11-20T10:29:08.757804","action":"create","record_id":7,"domain":"dyntest.lab.test","record_type":"A","value":"10.0.0.111","detail":null
+{"id":53,"timestamp":"2026-11-20T10:17:31.732028","action":"delete","record_id":7,"domain":"dyntest.lab.test","record_type":"A","value":"10.0.0.222","detail":null
+{"id":52,"timestamp":"2026-11-20T10:17:31.445172","action":"enable","record_id":7,"domain":"dyntest.lab.test","record_type":"A","value":"10.0.0.222","detail":"enabled: False -> True"
+{"id":51,"timestamp":"2026-11-20T10:17:26.229739","action":"disable","record_id":7,"domain":"dyntest.lab.test","record_type":"A","value":"10.0.0.222","detail":"enabled: True -> False"
+{"id":50,"timestamp":"2026-11-20T10:17:21.033113","action":"update","record_id":7,"domain":"dyntest.lab.test","record_type":"A","value":"10.0.0.222","detail":"value: 10.0.0.111 -> 10.0.0.222, ttl: 30 -> 30"
+{"id":49,"timestamp":"2026-11-20T10:17:13.452887","action":"create","record_id":7,"domain":"dyntest.lab.test","record_type":"A","value":"10.0.0.111","detail":null
+
+--- 3-9. 반영 지연 측정 — 저장 응답 시점과 DNS 반영 시점은 다르다 ---
+저장 요청 시작 / 저장 응답 수신 / DNS 에서 새 값이 처음 관측된 시점을 각각 잰다.
+밀리초 단위 측정이 필요해 백엔드 컨테이너 안에서 CoreDNS 에 직접 질의한다
+(dig 컨테이너는 기동만 수 초가 걸려 이 측정에 쓸 수 없다).
+  회차           저장 응답(ms)        응답->DNS 반영(ms)
+  1                  8.8                1850.5
+  2                 10.5                1989.8
+  3                 14.1                1988.7
+  4                 13.4                1984.3
+  5                 15.5                1980.1
+  평균                12.5                1958.7
+
+  순수 DNS 질의 1회 왕복: 0.92 ms
+  레코드 TTL: 30s (클라이언트 캐시 수명 — 위 반영 지연과는 별개의 축)
+  CoreDNS 존 파일 폴링 주기: 2s (Corefile 의 reload 설정)
+
+================================================================
+ 실험 4. Service Discovery (api.lab.test -> node1/node2/node3)
+================================================================
+
+--- 4-1. DNS 응답에 3개의 A 레코드가 모두 존재하는지 ---
+
+; <<>> DiG 9.18.49 <<>> @172.30.0.10 api.lab.test A
+; (1 server found)
+;; global options: +cmd
+;; Got answer:
+;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 31120
+;; flags: qr aa rd; QUERY: 1, ANSWER: 3, AUTHORITY: 1, ADDITIONAL: 1
+;; WARNING: recursion requested but not available
+
+;; OPT PSEUDOSECTION:
+; EDNS: version: 0, flags:; udp: 1232
+; COOKIE: c0ae7993059dc1ba (echoed)
+;; QUESTION SECTION:
+;api.lab.test.			IN	A
+
+;; ANSWER SECTION:
+api.lab.test.		30	IN	A	172.30.0.21
+api.lab.test.		30	IN	A	172.30.0.22
+api.lab.test.		30	IN	A	172.30.0.23
+
+;; AUTHORITY SECTION:
+lab.test.		30	IN	NS	ns.dns.lab.test.
+
+;; Query time: 0 msec
+;; SERVER: 172.30.0.10#53(172.30.0.10) (UDP)
+;; WHEN: Fri Nov 20 10:35:55 UTC 2026
+;; MSG SIZE  rcvd: 174
+
+
+--- 4-2. 질의를 반복하면 응답 순서가 round-robin 으로 바뀌는지 (5회) ---
+[1] 172.30.0.21 172.30.0.23 172.30.0.22 
+[2] 172.30.0.22 172.30.0.23 172.30.0.21 
+[3] 172.30.0.23 172.30.0.21 172.30.0.22 
+[4] 172.30.0.21 172.30.0.22 172.30.0.23 
+[5] 172.30.0.22 172.30.0.21 172.30.0.23 
+
+--- 4-3. 도메인 이름만으로 실제 API 호출 (DNS 기반 디스커버리, 12회) ---
+컨테이너의 resolver = CoreDNS(172.30.0.10). IP가 아닌 도메인으로 호출한다.
+[ 1] {"node_id":"node1","hostname":"110fff9301b0"}
+[ 2] {"node_id":"node3","hostname":"98751faa21f4"}
+[ 3] {"node_id":"node3","hostname":"98751faa21f4"}
+[ 4] {"node_id":"node1","hostname":"110fff9301b0"}
+[ 5] {"node_id":"node1","hostname":"110fff9301b0"}
+[ 6] {"node_id":"node1","hostname":"110fff9301b0"}
+[ 7] {"node_id":"node3","hostname":"98751faa21f4"}
+[ 8] {"node_id":"node1","hostname":"110fff9301b0"}
+[ 9] {"node_id":"node3","hostname":"98751faa21f4"}
+[10] {"node_id":"node2","hostname":"c4ed1d1e2dcc"}
+[11] {"node_id":"node1","hostname":"110fff9301b0"}
+[12] {"node_id":"node2","hostname":"c4ed1d1e2dcc"}
+
+--- 4-4. 노드별 응답 분포 (30회 호출 집계) ---
+     13 "node_id":"node1"
+      9 "node_id":"node2"
+      8 "node_id":"node3"
+
+--- 4-5. CNAME(www.lab.test)을 통한 접근도 동작하는지 ---
+{"node_id":"node2","hostname":"c4ed1d1e2dcc"}
+
+================================================================
+ 실험 5. Failure Handling (노드 장애 -> DNS 레코드 변경으로 복구)
+================================================================
+시나리오: node1 중지 -> 장애 영향 측정 -> node1의 A 레코드 비활성화 -> 복구 확인
+
+두 가지 클라이언트 모델로 측정한다.
+  모델 A (단순 클라이언트): DNS 응답의 첫 주소만 사용 -> 장애 노드에 걸리면 바로 실패
+  모델 B (curl 기본): 첫 주소 실패 시 다음 주소로 폴백 -> 성공하지만 응답 지연 증가
+
+--- 5-1. [정상 상태] 모델 A, 30회 호출 — 세 노드에 고르게 분배 예상 ---
+     13 "node_id":"node1"
+      9 "node_id":"node2"
+      8 "node_id":"node3"
+
+--- 5-2. [정상 상태] 모델 B, 응답 시간 측정 ---
+[1] {"node_id":"node2","hostname":"c4ed1d1e2dcc"} | 0.003789s
+[2] {"node_id":"node3","hostname":"98751faa21f4"} | 0.004094s
+[3] {"node_id":"node3","hostname":"98751faa21f4"} | 0.003339s
+[4] {"node_id":"node2","hostname":"c4ed1d1e2dcc"} | 0.003026s
+[5] {"node_id":"node3","hostname":"98751faa21f4"} | 0.003282s
+[6] {"node_id":"node1","hostname":"110fff9301b0"} | 0.003418s
+[7] {"node_id":"node2","hostname":"c4ed1d1e2dcc"} | 0.004039s
+[8] {"node_id":"node3","hostname":"98751faa21f4"} | 0.005479s
+[9] {"node_id":"node3","hostname":"98751faa21f4"} | 0.003950s
+[10] {"node_id":"node1","hostname":"110fff9301b0"} | 0.002719s
+[11] {"node_id":"node2","hostname":"c4ed1d1e2dcc"} | 0.002746s
+[12] {"node_id":"node3","hostname":"98751faa21f4"} | 0.002218s
+[13] {"node_id":"node1","hostname":"110fff9301b0"} | 0.002261s
+[14] {"node_id":"node1","hostname":"110fff9301b0"} | 0.002220s
+[15] {"node_id":"node3","hostname":"98751faa21f4"} | 0.002304s
+[16] {"node_id":"node2","hostname":"c4ed1d1e2dcc"} | 0.002261s
+[17] {"node_id":"node3","hostname":"98751faa21f4"} | 0.002180s
+[18] {"node_id":"node2","hostname":"c4ed1d1e2dcc"} | 0.002100s
+[19] {"node_id":"node2","hostname":"c4ed1d1e2dcc"} | 0.002238s
+[20] {"node_id":"node1","hostname":"110fff9301b0"} | 0.001976s
+
+--- 5-3. node1 중지 (장애 발생) ---
+ Container dns-manager-project-node1-1 Stopping 
+ Container dns-manager-project-node1-1 Stopped 
+현재 DNS 응답 (node1 IP가 아직 남아 있음):
+172.30.0.21
+172.30.0.23
+172.30.0.22
+
+--- 5-4. [장애 상태 / DNS 미조치] 모델 A, 30회 호출 — 약 1/3 실패 예상 ---
+     13 "node_id":"FAILED"
+      8 "node_id":"node2"
+      9 "node_id":"node3"
+
+--- 5-5. [장애 상태 / DNS 미조치] 모델 B — 폴백으로 성공하지만 지연 증가 ---
+[1] {"node_id":"node3","hostname":"98751faa21f4"} | 0.003059s
+[2] {"node_id":"node3","hostname":"98751faa21f4"} | 0.002973s
+[3] {"node_id":"node3","hostname":"98751faa21f4"} | 0.002348s
+[4] {"node_id":"node2","hostname":"c4ed1d1e2dcc"} | 0.002456s
+[5] {"node_id":"node3","hostname":"98751faa21f4"} | 0.002361s
+[6] {"node_id":"node2","hostname":"c4ed1d1e2dcc"} | 2.503912s
+[7] {"node_id":"node2","hostname":"c4ed1d1e2dcc"} | 0.557586s
+[8] {"node_id":"node2","hostname":"c4ed1d1e2dcc"} | 2.503956s
+[9] {"node_id":"node2","hostname":"c4ed1d1e2dcc"} | 0.560294s
+[10] {"node_id":"node2","hostname":"c4ed1d1e2dcc"} | 2.503424s
+[11] {"node_id":"node2","hostname":"c4ed1d1e2dcc"} | 0.002509s
+[12] {"node_id":"node2","hostname":"c4ed1d1e2dcc"} | 0.555666s
+[13] {"node_id":"node3","hostname":"98751faa21f4"} | 0.002101s
+[14] {"node_id":"node2","hostname":"c4ed1d1e2dcc"} | 2.502777s
+[15] {"node_id":"node3","hostname":"98751faa21f4"} | 0.558666s
+[16] {"node_id":"node3","hostname":"98751faa21f4"} | 2.502517s
+[17] {"node_id":"node2","hostname":"c4ed1d1e2dcc"} | 0.002461s
+[18] {"node_id":"node2","hostname":"c4ed1d1e2dcc"} | 0.001646s
+[19] {"node_id":"node2","hostname":"c4ed1d1e2dcc"} | 0.001586s
+[20] {"node_id":"node3","hostname":"98751faa21f4"} | 0.001933s
+
+--- 5-6. [장애 대응] node1의 A 레코드 비활성화 ---
+대상 record id = 1 (value=172.30.0.21)
+{"id":1,"domain":"api.lab.test","record_type":"A","value":"172.30.0.21","ttl":30,"enabled":false,"created_at":"2026-11-20T10:34:13.219121","updated_at":"2026-11-20T10:37:02.829137"}
+DNS 반영 대기 (3초)...
+현재 DNS 응답 (node1 IP 제거됨):
+172.30.0.23
+172.30.0.22
+
+--- 5-7. [대응 후] 모델 A, 30회 호출 — 전량 성공 예상 ---
+     13 "node_id":"node2"
+     17 "node_id":"node3"
+
+--- 5-8. [대응 후] 모델 B — 지연 정상화 확인 ---
+[1] {"node_id":"node3","hostname":"98751faa21f4"} | 0.003436s
+[2] {"node_id":"node3","hostname":"98751faa21f4"} | 0.003070s
+[3] {"node_id":"node3","hostname":"98751faa21f4"} | 0.002597s
+[4] {"node_id":"node3","hostname":"98751faa21f4"} | 0.002571s
+[5] {"node_id":"node2","hostname":"c4ed1d1e2dcc"} | 0.002758s
+[6] {"node_id":"node3","hostname":"98751faa21f4"} | 0.003504s
+[7] {"node_id":"node2","hostname":"c4ed1d1e2dcc"} | 0.003664s
+[8] {"node_id":"node3","hostname":"98751faa21f4"} | 0.003597s
+[9] {"node_id":"node2","hostname":"c4ed1d1e2dcc"} | 0.003310s
+[10] {"node_id":"node3","hostname":"98751faa21f4"} | 0.003744s
+[11] {"node_id":"node3","hostname":"98751faa21f4"} | 0.005741s
+[12] {"node_id":"node3","hostname":"98751faa21f4"} | 0.003280s
+[13] {"node_id":"node2","hostname":"c4ed1d1e2dcc"} | 0.003814s
+[14] {"node_id":"node2","hostname":"c4ed1d1e2dcc"} | 0.003871s
+[15] {"node_id":"node3","hostname":"98751faa21f4"} | 0.003892s
+[16] {"node_id":"node3","hostname":"98751faa21f4"} | 0.003422s
+[17] {"node_id":"node3","hostname":"98751faa21f4"} | 0.003295s
+[18] {"node_id":"node3","hostname":"98751faa21f4"} | 0.002398s
+[19] {"node_id":"node3","hostname":"98751faa21f4"} | 0.002124s
+[20] {"node_id":"node3","hostname":"98751faa21f4"} | 0.002053s
+
+--- 5-9. [복구] node1 재기동 및 A 레코드 재활성화 ---
+ Container dns-manager-project-node1-1 Starting 
+ Container dns-manager-project-node1-1 Started 
+DNS 반영 대기 (3초)...
+현재 DNS 응답:
+172.30.0.22
+172.30.0.21
+172.30.0.23
+
+--- 5-10. [복구 확인] 모델 A, 30회 호출 ---
+      7 "node_id":"node1"
+     14 "node_id":"node2"
+      9 "node_id":"node3"
+
+--- 5-11. 변경 이력 (audit log) — 장애 대응 타임라인 ---
+{"id":167,"timestamp":"2026-11-20T10:37:15.542271","action":"enable","record_id":1,"domain":"api.lab.test","record_type":"A","value":"172.30.0.21","detail":"enabled: False -> True"
+{"id":166,"timestamp":"2026-11-20T10:37:02.829528","action":"disable","record_id":1,"domain":"api.lab.test","record_type":"A","value":"172.30.0.21","detail":"enabled: True -> False"
+{"id":157,"timestamp":"2026-11-20T10:35:37.815023","action":"enable","record_id":7,"domain":"dyntest.lab.test","record_type":"A","value":"10.0.0.222","detail":"enabled: False -> True"
+{"id":156,"timestamp":"2026-11-20T10:35:32.496329","action":"disable","record_id":7,"domain":"dyntest.lab.test","record_type":"A","value":"10.0.0.222","detail":"enabled: True -> False"
+{"id":132,"timestamp":"2026-11-20T10:33:09.751924","action":"disable","record_id":13,"domain":"idem.lab.test","record_type":"A","value":"10.7.7.7","detail":"enabled: True -> False"
+{"id":125,"timestamp":"2026-11-20T10:32:53.883069","action":"disable","record_id":7,"domain":"cnflict.lab.test","record_type":"A","value":"10.4.4.4","detail":"enabled: True -> False"
+{"id":123,"timestamp":"2026-11-20T10:32:40.535472","action":"enable","record_id":1,"domain":"api.lab.test","record_type":"A","value":"172.30.0.21","detail":"enabled: False -> True"
+{"id":122,"timestamp":"2026-11-20T10:32:27.573069","action":"disable","record_id":1,"domain":"api.lab.test","record_type":"A","value":"172.30.0.21","detail":"enabled: True -> False"
+{"id":113,"timestamp":"2026-11-20T10:31:17.114199","action":"enable","record_id":7,"domain":"dyntest.lab.test","record_type":"A","value":"10.0.0.222","detail":"enabled: False -> True"
+{"id":112,"timestamp":"2026-11-20T10:31:11.645983","action":"disable","record_id":7,"domain":"dyntest.lab.test","record_type":"A","value":"10.0.0.222","detail":"enabled: True -> False"
+
+================================================================
+ 실험 6. 예외 상황 및 방어 동작
+================================================================
+관점: 잘못된 요청이 DNS 서비스 자체를 망가뜨리지 않고 거부되는가,
+      그리고 거부된 뒤에도 시스템이 계속 정상 동작하는가.
+
+--- 6-1. A 레코드에 IP 가 아닌 값 수정 시도 (PUT) ---
+대상 record id = 1 (api.lab.test -> 172.30.0.21)
+PUT value='not an ip!!' -> HTTP 422 (422 = 거부)
+응답: {"detail":"invalid value for A record: Expected 4 octets in 'not an ip!!'"}
+
+거부 후에도 DNS 가 정상인지: 172.30.0.21 172.30.0.23 172.30.0.22 
+
+--- 6-2. TTL 범위 밖 값 ---
+  ttl=0 -> HTTP 422
+  ttl=-5 -> HTTP 422
+  ttl=999999999 -> HTTP 422
+
+--- 6-3. CNAME 공존 규칙 (RFC 1034) — 생성 경로 ---
+  cnflict.lab.test A 생성 -> HTTP 201
+  같은 이름에 CNAME 생성 -> HTTP 409 (409 = 거부)
+
+--- 6-4. CNAME 공존 규칙 — 비활성 레코드를 되살리는 경로 ---
+비활성 레코드를 다시 켜는 순간에도 충돌이 생길 수 있으므로 같은 검사를 한다.
+  A(id=7) 비활성화 -> HTTP 200
+  이제 CNAME 생성 (A 가 꺼져 있으므로 허용) -> HTTP 201
+  A 를 다시 활성화 -> HTTP 409 (409 = 거부)
+  응답: {"detail":"'cnflict.lab.test' already has an active CNAME record; a CNAME cannot coexist with other records for the same domain"}
+
+  거부 후 DB 상태 (A 는 비활성으로 유지되어야 함):
+    ,{"id":7,"domain":"cnflict.lab.test","record_type":"A","value":"10.4.4.4","ttl":30,"enabled":false,"created_at":"2026-11-20T10:37:27.852806","updated_at":"2026-11-20T10:37:28.672198"
+    ,{"id":8,"domain":"cnflict.lab.test","record_type":"CNAME","value":"api.lab.test","ttl":30,"enabled":true,"created_at":"2026-11-20T10:37:28.932815","updated_at":"2026-11-20T10:37:28.932820"
+  거부 후에도 무관한 레코드를 추가할 수 있는가 -> HTTP 201 (201 = 시스템이 멈추지 않음)
+
+--- 6-5. 같은 1초 안에 연속 변경 (SOA serial 단조 증가 확인) ---
+CoreDNS 는 SOA serial 이 직전과 같으면 내용이 달라도 존을 다시 읽지 않는다.
+따라서 초 단위 serial 을 그대로 쓰면 같은 초의 두 번째 변경이 유실된다.
+변경 직후 serial:
+  [1] 1795171051;serial
+  [2] 1795171052;serial
+  [3] 1795171053;serial
+DNS 반영 대기 (4초)...
+세 건 모두 DNS 에 반영되었는가:
+  burst1.lab.test -> 10.6.6.1 
+  burst2.lab.test -> 10.6.6.2 
+  burst3.lab.test -> 10.6.6.3 
+
+--- 6-6. 멱등성 — 같은 요청을 반복해도 상태가 누적되지 않는가 ---
+  동일 레코드 POST 4회 -> HTTP 201 200 200 200 (첫 201, 이후 200)
+  실제 저장 건수: 1
+  PATCH disable 3회 -> HTTP 200 200 200 
+  disable 감사 로그 증가분: 1 건 (PATCH 3회 -> 1건이어야 정상)
+  DELETE 3회 -> HTTP 204 204 204 (204 = 멱등)
+
+--- 6-7. 질의 테스트에 잘못된 도메인 입력 ---
+  [..] -> HTTP 422
+  [a..b] -> HTTP 422
+  [very-long-label-that-is-way-over-sixty-t] -> HTTP 422
+
+--- 6-8. forwarding 설정에 잘못된 값 ---
+  ["not-an-ip"] -> HTTP 422
+  ["8.8.8.8; rm -rf /"] -> HTTP 422
+  [] -> HTTP 422
+  ["8.8.8.8","8.8.8.8"] -> HTTP 422
+  현재 설정이 보존되었는가: {"upstreams":["8.8.8.8","1.1.1.1"]}
+
+--- 6-9. 정리 및 최종 상태 확인 ---
+남은 레코드 (00-setup.sh 가 구성한 baseline 6건 — 실험이 만든 레코드는 모두 정리됨):
+    "domain":"*.cdn.lab.test","record_type":"CNAME","value":"api.lab.test"
+    "domain":"*.dev.lab.test","record_type":"A","value":"10.0.0.99"
+    "domain":"api.lab.test","record_type":"A","value":"172.30.0.21"
+    "domain":"api.lab.test","record_type":"A","value":"172.30.0.22"
+    "domain":"api.lab.test","record_type":"A","value":"172.30.0.23"
+    "domain":"www.lab.test","record_type":"CNAME","value":"api.lab.test"
+api.lab.test 최종 응답: 172.30.0.23 172.30.0.21 172.30.0.22 
+CoreDNS 존 파싱 에러 건수: 0
+
+================================================================
+ 전체 실험 완료
+================================================================

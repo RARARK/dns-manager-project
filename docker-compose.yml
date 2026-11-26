@@ -1,0 +1,144 @@
+# 네트워크/포트 값은 .env 에서 읽는다 (.env 가 없으면 아래 기본값 사용).
+# 호스트에서 서브넷이나 포트가 충돌하면 .env 한 파일만 고치면 된다.
+
+volumes:
+  dns_zone:
+  # DB 도 named volume 에 둔다. 호스트 바인드 마운트는 Windows 에서
+  # 파일 소유자가 root 로 고정되어, 비root 로 도는 백엔드가 쓰지 못한다.
+  backend_data:
+
+networks:
+  default:
+    ipam:
+      config:
+        - subnet: ${SUBNET:-172.30.0.0/24}
+
+services:
+  # CoreDNS 가 기동하는 순간 파싱 가능한 존 파일이 존재하도록 보장한다.
+  # 이미 파일이 있으면 건드리지 않는다(= 실행 중 데이터를 덮어쓰지 않음).
+  zone-init:
+    image: busybox:1.36
+    volumes:
+      - ./dns/db.lab.test:/seed/db.lab.test:ro
+      - ./dns/Corefile:/seed/Corefile:ro
+      - dns_zone:/zone
+      - backend_data:/data
+    # 존 파일과 Corefile 둘 다 CoreDNS 기동 시점에 존재해야 한다.
+    # 이미 있으면 덮어쓰지 않는다(= 실행 중 설정을 날리지 않음).
+    command:
+      - sh
+      - -c
+      - |
+        [ -f /zone/db.lab.test ] || cp /seed/db.lab.test /zone/db.lab.test
+        [ -f /zone/Corefile ]    || cp /seed/Corefile    /zone/Corefile
+        chmod 644 /zone/db.lab.test /zone/Corefile
+        # 백엔드는 비root(UID 10001)로 돌면서 이 디렉터리에 파일을 교체한다.
+        # named volume 은 기본적으로 root 소유이므로 여기서 소유권을 넘겨준다.
+        # CoreDNS 는 읽기만 하므로 0644 로 충분하다.
+        chown -R 10001:10001 /zone /data
+
+  coredns:
+    image: coredns/coredns:1.11.3
+    volumes:
+      # Corefile 도 백엔드가 생성하므로 존 파일과 같은 볼륨에 둔다.
+      - dns_zone:/etc/coredns/zone
+    command: ["-conf", "/etc/coredns/zone/Corefile"]
+    ports:
+      - "${BIND_ADDR:-127.0.0.1}:${DNS_PORT:-5300}:53/udp"
+      - "${BIND_ADDR:-127.0.0.1}:${DNS_PORT:-5300}:53/tcp"
+    networks:
+      default:
+        ipv4_address: ${DNS_IP:-172.30.0.10}
+    depends_on:
+      zone-init:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+  backend:
+    build: ./backend
+    environment:
+      ZONE_FILE_PATH: /zone/db.lab.test
+      COREFILE_PATH: /zone/Corefile
+      COREDNS_IP: ${DNS_IP:-172.30.0.10}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173,http://127.0.0.1:5173}
+      CORS_ORIGIN_REGEX: ${CORS_ORIGIN_REGEX:-}
+    volumes:
+      - dns_zone:/zone
+      - backend_data:/app/data
+    ports:
+      - "${BIND_ADDR:-127.0.0.1}:${BACKEND_PORT:-8080}:8000"
+    depends_on:
+      - coredns
+    restart: unless-stopped
+
+  frontend:
+    build: ./frontend
+    # 소스를 마운트하지 않으면 컨테이너는 이미지 빌드 시점 코드만 갖는다.
+    # 그러면 호스트에서 고친 내용이 반영되지 않고, 컨테이너 안에서 돌린
+    # 타입체크도 옛 코드를 검사하게 된다. 디렉터리만 마운트해서 Vite 가
+    # 변경을 감지하게 한다(단일 파일 마운트는 에디터의 교체 저장에 깨진다).
+    volumes:
+      - ./frontend/src:/app/src
+    environment:
+      # 비워 두면 프론트가 "접속한 호스트:BACKEND_PORT" 를 자동으로 쓴다.
+      VITE_BACKEND_URL: ${VITE_BACKEND_URL:-}
+      VITE_BACKEND_PORT: ${BACKEND_PORT:-8080}
+    ports:
+      - "${BIND_ADDR:-127.0.0.1}:${FRONTEND_PORT:-5173}:5173"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+  node1:
+    build: ./api-node
+    # 세 노드에 같은 image 태그를 준다. 태그가 없으면 compose 가 서비스마다
+    # 별도 이미지를 만들어, 같은 Dockerfile 이라도 이미지 ID 가 서로 달라진다
+    # ("동일한 REST API 서버 3개"를 이미지 수준에서 보장하지 못함).
+    image: dns-manager-api-node:local
+    environment:
+      NODE_ID: node1
+      PORT: "8000"
+    ports:
+      - "${BIND_ADDR:-127.0.0.1}:${NODE1_PORT:-8001}:8000"
+    networks:
+      default:
+        ipv4_address: ${NODE1_IP:-172.30.0.21}
+
+  node2:
+    build: ./api-node
+    # 세 노드에 같은 image 태그를 준다. 태그가 없으면 compose 가 서비스마다
+    # 별도 이미지를 만들어, 같은 Dockerfile 이라도 이미지 ID 가 서로 달라진다
+    # ("동일한 REST API 서버 3개"를 이미지 수준에서 보장하지 못함).
+    image: dns-manager-api-node:local
+    environment:
+      NODE_ID: node2
+      PORT: "8000"
+    ports:
+      - "${BIND_ADDR:-127.0.0.1}:${NODE2_PORT:-8002}:8000"
+    networks:
+      default:
+        ipv4_address: ${NODE2_IP:-172.30.0.22}
+
+  node3:
+    build: ./api-node
+    # 세 노드에 같은 image 태그를 준다. 태그가 없으면 compose 가 서비스마다
+    # 별도 이미지를 만들어, 같은 Dockerfile 이라도 이미지 ID 가 서로 달라진다
+    # ("동일한 REST API 서버 3개"를 이미지 수준에서 보장하지 못함).
+    image: dns-manager-api-node:local
+    environment:
+      NODE_ID: node3
+      PORT: "8000"
+    ports:
+      - "${BIND_ADDR:-127.0.0.1}:${NODE3_PORT:-8003}:8000"
+    networks:
+      default:
+        ipv4_address: ${NODE3_IP:-172.30.0.23}
+
+  # 실험용 도구 컨테이너. 평소에는 뜨지 않고 --profile debug 일 때만 실행된다.
+  dnsutils:
+    build: ./dnsutils
+    profiles: ["debug"]
+    dns:
+      - ${DNS_IP:-172.30.0.10}
+    depends_on:
+      - coredns
