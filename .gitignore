@@ -19,3 +19,6 @@ Thumbs.db
 # 볼륨 백업 파일 (RESTORE.md 참고)
 *.tar.gz
 docker-backup/
+
+# 새 PC 복원 절차 (로컬 전용)
+RESTORE.md
